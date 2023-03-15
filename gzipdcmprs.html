@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Decompress Event Stream</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #e4e4e4;
+        margin-top: 10px;
+        padding: 0;
+      }
+      .row {
+        display: flex;
+      }
+      .col {
+        flex: 1;
+
+        padding: 1em;
+      }
+
+      .container {
+        padding: 20px;
+        box-sizing: border-box;
+        background-color: #fff;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.586);
+      }
+      .jsoneditor {
+        float: right;
+      }
+
+      h1 {
+        font-size: 32px;
+        font-weight: bold;
+        margin: 0 0 20px;
+      }
+
+      p {
+        margin: 0 0 10px;
+      }
+
+      textarea {
+        width: 100%;
+        height: 100px;
+        margin-bottom: 10px;
+        margin-top: 5px;
+        padding: 10px;
+        box-sizing: border-box;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        font-size: 14px;
+        line-height: 1.5;
+        resize: vertical;
+      }
+
+      button {
+        display: block;
+        margin: 10px 0;
+        padding: 10px 20px;
+        font-size: 16px;
+        font-weight: bold;
+        color: #fff;
+        background-color: #4caf50;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      button:hover {
+        background-color: #398439;
+      }
+
+      .chunk {
+        margin: 20px 0;
+        padding: 10px 10px 0px 10px;
+        box-sizing: border-box;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        font-size: 14px;
+        line-height: 1.5;
+        background-color: #f5f5f5;
+        overflow: auto;
+      }
+
+      .chunk-label {
+        display: inline;
+        font-weight: bold;
+        margin: 0 0 10px;
+      }
+      .copy-button {
+        display: inline;
+        float: right;
+        padding: 2px 6px;
+        font-size: 14px;
+        margin: 0;
+        border-radius: 3px;
+        border: none;
+        background-color: #4caf50;
+        color: #fff;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+      .view-button {
+        display: inline;
+        float: right;
+        padding: 2px 6px;
+        font-size: 14px;
+        margin: 0;
+        margin-right:10px;
+        border-radius: 3px;
+        border: none;
+        background-color: #4caf50;
+        color: #fff;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .copy-button:hover {
+        background-color: #398439;
+      }
+      .jsoneditor-menu .jsoneditor-copy {
+        margin-left: 5px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .copyjson-button {
+        padding: 5px;
+        margin-left: 5px;
+        cursor: pointer;
+      }
+    </style>
+    <!-- jQuery library (required) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.10.0/jsoneditor.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.0.4/pako.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.10.0/jsoneditor.min.css"
+    />
+  </head>
+  <body>
+    <div class="row">
+      <div class="container col">
+        <h1>Decompress Event Stream</h1>
+        <p>
+          Paste your <code>text/event-stream</code> response containing
+          gzip-compressed data:
+        </p>
+        <textarea id="input"></textarea>
+        <button onclick="decompress()">Decompress</button>
+        <p>Decompressed chunks:</p>
+        <div id="output"></div>
+      </div>
+      <div id="jsoneditor" class="col"></div>
+    </div>
+
+    <script>
+      var container = document.getElementById("jsoneditor");
+      var options = {
+        mode: "tree",
+      };
+      var editor = new JSONEditor(container, options);
+
+      var copyJsonButton = document.createElement("p");
+      copyJsonButton.textContent = "Copy";
+      copyJsonButton.className = "copyjson-button"
+      copyJsonButton.addEventListener("click", function () {
+        navigator.clipboard.writeText(JSON.stringify(editor.get()));
+      });
+
+      var menu = editor.menu;
+      menu.appendChild(copyJsonButton);
+      function decompress() {
+        const input = document.getElementById("input").value;
+
+        const decompressedChunks = decompressEventStream(input);
+
+        const output = document.getElementById("output");
+        output.innerHTML = "";
+
+        for (let i = 0; i < decompressedChunks.length; i++) {
+          var chunkSize = new Blob([decompressedChunks[i]]).size;
+          chunkSize = Math.round(chunkSize / 1024);
+          const chunkLabel = `Chunk ${i + 1} (${chunkSize} KB):`;
+          const chunkText = decompressedChunks[i];
+
+          const chunkDiv = document.createElement("div");
+          chunkDiv.className = "chunk";
+
+          const label = document.createElement("span");
+          label.className = "chunk-label";
+          label.innerText = chunkLabel;
+          chunkDiv.appendChild(label);
+
+          const copyButton = document.createElement("button");
+          copyButton.className = "copy-button";
+          copyButton.innerText = "Copy";
+          copyButton.onclick = () => {
+            textarea.select();
+            document.execCommand("copy");
+          };
+          chunkDiv.appendChild(copyButton);
+
+          const viewButton = document.createElement("button");
+          viewButton.className = "view-button";
+          viewButton.innerText = "View";
+          viewButton.onclick = () => {
+            editor.set(JSON.parse(textarea.value));
+          };
+          chunkDiv.appendChild(viewButton);
+
+          const textarea = document.createElement("textarea");
+          textarea.value = chunkText;
+          textarea.readOnly = true;
+          chunkDiv.appendChild(textarea);
+
+          output.appendChild(chunkDiv);
+        }
+      }
+      function decompressEventStream(gzipText) {
+        const decompressedChunks = [];
+        const gzipDecoder = new TextDecoder("utf-8");
+
+        const startIndex = gzipText.search(/\bid:(?! HANDSHAKE)/);
+        if (startIndex >= 0) {
+          gzipText = gzipText.substring(startIndex);
+        }
+        console.log(gzipText);
+
+        const lines = gzipText.split("\n");
+
+        let compressedData = "";
+        for (const line of lines) {
+          if (!gzipText.includes("data:")) {
+            compressedData += line;
+          }
+          if (line.startsWith("data: ")) {
+            compressedData += line.slice(6).trim();
+          } else if (line.startsWith("data:")) {
+            compressedData += line.slice(5).trim();
+          } else {
+            if (compressedData.length > 0) {
+              const compressedBytes = Uint8Array.from(
+                atob(compressedData),
+                (c) => c.charCodeAt(0)
+              );
+              const decompressedBytes = pako.inflate(compressedBytes);
+              const decompressedText = gzipDecoder.decode(decompressedBytes);
+
+              decompressedChunks.push(decompressedText);
+              compressedData = "";
+            }
+          }
+        }
+
+        return decompressedChunks;
+      }
+    </script>
+  </body>
+</html>
