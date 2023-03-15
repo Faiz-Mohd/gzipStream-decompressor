@@ -55,7 +55,6 @@
       }
 
       button {
-        display: block;
         margin: 10px 0;
         padding: 10px 20px;
         font-size: 16px;
@@ -127,8 +126,9 @@
       }
       .copyjson-button {
         padding: 5px;
-        margin-left: 5px;
+        margin-left: 40px;
         cursor: pointer;
+        background-image:none !important;
       }
     </style>
     <!-- jQuery library (required) -->
@@ -162,15 +162,16 @@
       };
       var editor = new JSONEditor(container, options);
 
-      var copyJsonButton = document.createElement("p");
+      var copyJsonButton = document.createElement("button");
       copyJsonButton.textContent = "Copy";
       copyJsonButton.className = "copyjson-button"
       copyJsonButton.addEventListener("click", function () {
         navigator.clipboard.writeText(JSON.stringify(editor.get()));
       });
-
-      var menu = editor.menu;
+      var menu = document.getElementsByClassName("jsoneditor-menu")[0]
       menu.appendChild(copyJsonButton);
+
+      
       function decompress() {
         const input = document.getElementById("input").value;
 
